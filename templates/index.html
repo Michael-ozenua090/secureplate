@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecurePlate — Live Dashboard</title>
+    <meta name="description" content="SecurePlate live license plate recognition dashboard with real-time camera feed and access control.">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+
+<!-- ===================== NAVBAR ===================== -->
+<nav class="navbar">
+    <div class="nav-brand">
+        <div class="nav-logo">🔒</div>
+        <div class="nav-title">Secure<em>Plate</em></div>
+    </div>
+
+    <div class="nav-center">
+        <div class="status-dot" id="sys-dot"></div>
+        <span id="sys-label">SYSTEM READY</span>
+    </div>
+
+    <div class="nav-clock" id="nav-clock">--:--:--</div>
+</nav>
+
+<!-- ===================== PAGE ===================== -->
+<div class="page">
+
+    <!-- STAT CARDS -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon si-total">📊</div>
+            <div>
+                <div class="stat-label">Total Scans</div>
+                <div class="stat-value sv-total" id="s-total">0</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon si-allowed">✅</div>
+            <div>
+                <div class="stat-label">Access Granted</div>
+                <div class="stat-value sv-allowed" id="s-allowed">0</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon si-denied">🚫</div>
+            <div>
+                <div class="stat-label">Access Denied</div>
+                <div class="stat-value sv-denied" id="s-denied">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN GRID -->
+    <div class="main-grid">
+
+        <!-- MODEL LOADING BANNER (hidden once OCR model is ready) -->
+        <div class="model-banner" id="model-banner" style="grid-column: 1 / -1;">
+            ⏳ PyTorch AI & EasyOCR model is warming up in CPU memory (~15-30s)... You can click Start Camera right now!
+        </div>
+
+        <!-- CAMERA CARD -->
+        <div class="card" id="cam-card">
+            <div class="card-header">
+                <span class="card-title">Live Camera Feed</span>
+                <div style="display:flex; gap:8px; align-items:center">
+                    <button class="btn btn-danger"   id="btn-stop"    onclick="stopCamera()">⏹ Stop</button>
+                    <button class="btn btn-switch"   id="btn-switch"  onclick="switchCamera()" style="display:none" title="Switch camera">⇄ Switch</button>
+                    <button class="btn btn-primary"  id="btn-start"   onclick="startCamera()">▶ Start Camera</button>
+                </div>
+            </div>
+
+            <div class="camera-viewport">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="overlay-canvas"></canvas>
+                <div class="scan-line" id="scan-line"></div>
+
+                <!-- Corner bracket decorators -->
+                <div class="corner c-tl"></div>
+                <div class="corner c-tr"></div>
+                <div class="corner c-bl"></div>
+                <div class="corner c-br"></div>
+
+                <!-- Standby overlay -->
+                <div class="cam-standby" id="cam-standby">
+                    <div class="cam-standby-icon">📷</div>
+                    <p>Click <strong>Start Camera</strong> to begin scanning</p>
+                </div>
+            </div>
+
+            <!-- Hidden canvas used to capture frames for upload -->
+            <canvas id="capture-canvas" style="display:none"></canvas>
+
+            <div class="camera-footer">
+                <div class="scan-status">
+                    <div id="scan-dot"></div>
+                    <span id="scan-text" style="color:var(--t3)">Camera offline</span>
+                    <span id="scan-feedback" class="scan-feedback"></span>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px">
+                    <span id="cam-label" class="cam-label-text"></span>
+                    <div class="interval-hint">Scan interval: <strong>2s</strong></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DETECTION CARD -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Detection Result</span>
+            </div>
+
+            <div class="det-body">
+
+                <!-- Plate number display -->
+                <div class="plate-box">
+                    <div class="plate-lbl">Detected Plate Number</div>
+                    <div class="plate-num" id="plate-num">---</div>
+                </div>
+
+                <!-- Access status badge -->
+                <div class="access-badge" id="access-badge">AWAITING SCAN</div>
+
+                <!-- Vehicle info rows -->
+                <div class="info-list">
+                    <div class="info-row">
+                        <span class="info-key">Owner</span>
+                        <span class="info-val" id="d-owner">---</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Category</span>
+                        <span class="info-val" id="d-category">---</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-key">Last Seen</span>
+                        <span class="info-val" id="d-time">---</span>
+                    </div>
+                </div>
+
+                <!-- OCR confidence bar -->
+                <div class="conf-wrap">
+                    <div class="conf-header">
+                        <span class="conf-label">OCR Confidence</span>
+                        <span class="conf-pct" id="conf-pct">---%</span>
+                    </div>
+                    <div class="conf-track">
+                        <div class="conf-fill" id="conf-fill"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div><!-- /main-grid -->
+
+    <!-- LOG CARD -->
+    <div class="card log-card">
+        <div class="card-header">
+            <span class="card-title">Recent Detections</span>
+            <button class="btn btn-secondary" onclick="loadLog()">↻ Refresh</button>
+        </div>
+        <div class="log-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Plate</th>
+                        <th>Status</th>
+                        <th>Owner</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody id="log-body">
+                    <tr><td colspan="5" class="log-empty">No detections logged yet</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div><!-- /page -->
+
+<!-- JavaScript (deferred so DOM is ready) -->
+<script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+
+</body>
+</html>

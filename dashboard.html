@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="5">
+    <title>SecurePlate Dashboard</title>
+    <style>
+        /* --- Basic Setup --- */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            text-align: center;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        /* --- Title --- */
+        h1 {
+            color: #1c3d5a;
+            margin-top: 0;
+            margin-bottom: 30px;
+        }
+
+        /* --- Status Box --- */
+        .status {
+            font-size: 2.2em;
+            font-weight: bold;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+
+            /* Default "waiting" state */
+            background-color: #e9ecef;
+            color: #495057;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* --- Conditional Styles (applied by the Python script) --- */
+        .status.allowed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status.denied {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        /* --- Details Box --- */
+        .details {
+            text-align: left;
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: #555;
+        }
+
+        .details p {
+            margin: 10px 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .details p:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>SecurePlate Access Control</h1>
+
+        <p class="status">Status: WAITING...</p>
+
+        <div class="details">
+            <p>Plate: ---</p>
+            <p>Owner: ---</p>
+            <p>Category: ---</p>
+            <p>Time: ---</p>
+        </div>
+    </div>
+
+</body>
+</html>
