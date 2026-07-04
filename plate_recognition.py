@@ -258,23 +258,32 @@ def easyocr_read(image):
             print(f"[EasyOCR] Error on variant '{variant_name}': {ocr_err}")
             result = []
 
-        # Find the best text read from this variant
+        # Extract and combine all text blocks found by EasyOCR into a single string
+        texts = []
+        confs = []
         for item in result:
-            if not (isinstance(item, (list, tuple)) and len(item) >= 3):
-                continue
-            
-            text = str(item[1] if item[1] is not None else "")
-            conf = float(item[2] if item[2] is not None else 0.0)
+            if isinstance(item, (list, tuple)) and len(item) >= 3:
+                text_frag = str(item[1] if item[1] is not None else "").strip()
+                if text_frag:
+                    texts.append(text_frag)
+                conf_val = float(item[2] if item[2] is not None else 0.0)
+                confs.append(conf_val)
 
-            # Store the best raw read (for repair later)
-            if conf > best_raw_conf:
-                best_raw_conf = conf
-                best_raw_text = text
+        if not texts:
+            continue
 
-            # Check if this text can be normalized
-            normalized = _normalize_plate(text)
-            if normalized:
-                candidates.append((normalized, conf))
+        combined_text = " ".join(texts)
+        avg_conf = sum(confs) / len(confs) if confs else 0.0
+
+        # Store the best raw read (for repair later)
+        if avg_conf > best_raw_conf:
+            best_raw_conf = avg_conf
+            best_raw_text = combined_text
+
+        # Check if the entire combined string can be normalized into a valid plate
+        normalized = _normalize_plate(combined_text)
+        if normalized:
+            candidates.append((normalized, avg_conf))
 
     # --- Process Results ---
 
@@ -404,10 +413,9 @@ def read_plate_from_frame(frame, debug=False):
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
     edged = cv2.morphologyEx(edged, cv2.MORPH_CLOSE, kernel, iterations=1)
 
-    # Find the *external* contours. This is a key change!
-    # RETR_EXTERNAL gets only the "parent" outlines, not the "child" contours
-    # (like the letters inside the plate).
-    contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find all rectangular contours using RETR_LIST so we evaluate all rectangular shapes,
+    # including nested contours (like a plate inside a car bumper).
+    contours, _ = cv2.findContours(edged, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     
     # Filter and sort contours by area (largest first)
     candidates = []
@@ -425,10 +433,10 @@ def read_plate_from_frame(frame, debug=False):
             if area < 300:
                 continue
             
-            # Filter by aspect ratio. A Nigerian plate is ~2:1.
-            # We'll set a range from 1.8 to 5.5 to catch various plates at an angle.
+            # Filter by aspect ratio. Standard Nigerian plates have a ratio of ~1.875.
+            # We use a relaxed range from 1.5 to 5.5 to account for slight camera tilt or tight bounding boxes.
             aspect_ratio = w / (h + 1e-6)
-            if not (1.8 <= aspect_ratio <= 5.5):
+            if not (1.5 <= aspect_ratio <= 5.5):
                 continue
             
             # Position filter: avoid very top of frame (where state label usually is)
