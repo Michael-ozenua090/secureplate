@@ -277,13 +277,17 @@ async function switchCamera() {
 /* -------------------------------------------------------
    FRAME CAPTURE → BACKEND
 ------------------------------------------------------- */
+let isProcessing = false;
+
 async function sendFrame() {
     if (!scanning || !mediaStream) return;
+    if (isProcessing) return;
     if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
         setScanFeedback(`\u2014 waiting for video feed (${video.readyState})\u2026`, 'miss');
         return;
     }
 
+    isProcessing = true;
     scanCount++;
 
     // Draw current video frame to hidden canvas and encode as JPEG
@@ -306,6 +310,8 @@ async function sendFrame() {
     } catch (err) {
         console.warn('[sendFrame] request failed:', err);
         setScanFeedback(`\u2014 error on frame #${scanCount}`, 'miss');
+    } finally {
+        isProcessing = false;
     }
 }
 
